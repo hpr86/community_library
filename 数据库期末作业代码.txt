@@ -1,0 +1,94 @@
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS community_library;
+USE community_library;
+
+-- 1. 读者表
+CREATE TABLE readers (
+    reader_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '读者ID',
+    name VARCHAR(50) NOT NULL COMMENT '姓名',
+    phone VARCHAR(20) UNIQUE COMMENT '电话',
+    email VARCHAR(100) UNIQUE COMMENT '邮箱',
+    card_number VARCHAR(30) UNIQUE NOT NULL COMMENT '借阅卡号',
+    password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
+    address VARCHAR(200) COMMENT '地址',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否有效',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间'
+) COMMENT='读者信息表';
+
+-- 2. 图书表
+CREATE TABLE books (
+    book_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '图书ID',
+    isbn VARCHAR(20) UNIQUE COMMENT 'ISBN号',
+    title VARCHAR(200) NOT NULL COMMENT '书名',
+    author VARCHAR(100) COMMENT '作者',
+    publisher VARCHAR(100) COMMENT '出版社',
+    publish_year YEAR COMMENT '出版年份',
+    category VARCHAR(50) COMMENT '分类',
+    location VARCHAR(50) COMMENT '书架位置',
+    total_copies INT DEFAULT 1 COMMENT '总副本数',
+    available_copies INT DEFAULT 1 COMMENT '可借副本数',
+    is_available BOOLEAN DEFAULT TRUE COMMENT '是否可借'
+) COMMENT='图书信息表';
+
+-- 3. 借阅记录表
+CREATE TABLE borrow_records (
+    borrow_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '借阅ID',
+    reader_id INT NOT NULL COMMENT '读者ID',
+    book_id INT NOT NULL COMMENT '图书ID',
+    borrow_date DATE NOT NULL COMMENT '借出日期',
+    due_date DATE NOT NULL COMMENT '应还日期',
+    return_date DATE COMMENT '实际归还日期',
+    status ENUM('借出', '已还', '逾期', '丢失') DEFAULT '借出' COMMENT '状态',
+    renew_count INT DEFAULT 0 COMMENT '续借次数',
+    FOREIGN KEY (reader_id) REFERENCES readers(reader_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id)
+) COMMENT='借阅记录表';
+
+-- 4. 预约记录表
+CREATE TABLE reservations (
+    reservation_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '预约ID',
+    reader_id INT NOT NULL COMMENT '读者ID',
+    book_id INT NOT NULL COMMENT '图书ID',
+    reserve_date DATE NOT NULL COMMENT '预约日期',
+    pickup_deadline DATE COMMENT '取书截止日期',
+    status ENUM('待取书', '已取书', '已取消', '已过期') DEFAULT '待取书' COMMENT '状态',
+    FOREIGN KEY (reader_id) REFERENCES readers(reader_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id)
+) COMMENT='图书预约表';
+
+-- 5. 罚款记录表
+CREATE TABLE fines (
+    fine_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '罚款ID',
+    reader_id INT NOT NULL COMMENT '读者ID',
+    borrow_id INT NOT NULL COMMENT '借阅记录ID',
+    amount DECIMAL(10, 2) NOT NULL COMMENT '罚款金额',
+    reason VARCHAR(200) COMMENT '罚款原因（逾期/损坏/丢失）',
+    paid BOOLEAN DEFAULT FALSE COMMENT '是否已支付',
+    paid_date DATE COMMENT '支付日期',
+    FOREIGN KEY (reader_id) REFERENCES readers(reader_id),
+    FOREIGN KEY (borrow_id) REFERENCES borrow_records(borrow_id)
+) COMMENT='罚款记录表';
+
+-- 6. 管理员表
+CREATE TABLE librarians (
+    librarian_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '管理员ID',
+    username VARCHAR(50) UNIQUE NOT NULL COMMENT '用户名',
+    password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
+    name VARCHAR(50) NOT NULL COMMENT '姓名',
+    role ENUM('管理员', '超级管理员') DEFAULT '管理员' COMMENT '角色',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用'
+) COMMENT='图书管理员表';
+
+-- 7. 系统配置表
+CREATE TABLE config (
+    config_key VARCHAR(50) PRIMARY KEY COMMENT '配置键',
+    config_value VARCHAR(200) COMMENT '配置值',
+    description VARCHAR(200) COMMENT '说明'
+) COMMENT='系统配置表';
+
+-- 插入默认配置
+INSERT INTO config (config_key, config_value, description) VALUES
+('borrow_days', '30', '借阅天数'),
+('renew_limit', '1', '可续借次数'),
+('fine_per_day', '0.5', '逾期罚金（元/天）'),
+('max_borrow', '5', '每人最大借阅数');
